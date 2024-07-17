@@ -573,6 +573,7 @@ int main (unsigned int argc, char** argv) {
 	}
 
 	
+	// reading key data from file. length of key is Nk, found in AES specifications.
 	unsigned int Nk = getNk(standard);
 	uint8_t key[Nk*4];
 
@@ -585,9 +586,10 @@ int main (unsigned int argc, char** argv) {
 		}
 
 		unsigned int bytes_read = fread(key, sizeof(uint8_t), Nk*4, fkeyin);
-		if (bytes_read < Nk*4)
-			for (unsigned int i = bytes_read; i < Nk*4; ++i) 
-				key[i] = 0;
+		if (bytes_read < Nk*4) {
+			fprintf(stderr, "ERROR: Key file is not Nk bytes long.\n");
+			exit(EXIT_FAILURE);
+		}
 
 		if (fclose(fkeyin) != 0) {
 			fprintf(stderr, "ERROR: Unable to close key file.\n");
