@@ -448,20 +448,23 @@ void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int N
 			out[i][j] = state[i][j];
 }
 
-void encryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, char standard[7], bool verbose) {
+unsigned int getNk(char standard[8]) {
 
-	unsigned int Nk, Nr;
 	if (strcmp(standard, "aes-128") == 0) 
-		Nk = 4;
+		return 4;
 	else if (strcmp(standard, "aes-192") == 0)
-		Nk = 6;
+		return 6;
 	else if (strcmp(standard, "aes-256") == 0)
-		Nk = 8;
+		return 8;
 	else {
-		fprintf(stderr, "ERROR: Encryption standard not identified.\nUse argument: -aes[128|192|256]\n");
+		fprintf(stderr, "ERROR: Encryption standard not identified `%s`.\nUse argument: aes[128|192|256]\n", standard);
 		exit(EXIT_FAILURE);
 	}
-	Nr = Nk + 6;
+}
+
+void encryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, bool verbose) {
+
+	unsigned int Nr = Nk + 6;
 
 	uint32_t ekey[Nb*(Nr+1)];
 	keyExpansion(key, ekey, Nk);
@@ -469,20 +472,9 @@ void encryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, char standa
 
 }
 
-void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, char standard[7], bool verbose) {
+void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, bool verbose) {
 
-	unsigned int Nk, Nr;
-	if (strcmp(standard, "aes-128") == 0) 
-		Nk = 4;
-	else if (strcmp(standard, "aes-192") == 0)
-		Nk = 6;
-	else if (strcmp(standard, "aes-256") == 0)
-		Nk = 8;
-	else {
-		fprintf(stderr, "ERROR: Encryption standard not identified.\nUse argument: -s aes[128|192|256]\n");
-		exit(EXIT_FAILURE);
-	}
-	Nr = Nk + 6;
+	unsigned int Nr = Nk + 6;
 
 	uint32_t ekey[Nb*(Nr+1)];
 	keyExpansion(key, ekey, Nk);
@@ -498,7 +490,7 @@ int main (unsigned int argc, char** argv) {
 	}
 
 	bool verbose = false;
-	char standard[7] = "", *finName = NULL, *fkeyName = NULL, *foutName = NULL;
+	char standard[8] = "", *finName = NULL, *fkeyName = NULL, *foutName = NULL;
 	for (unsigned int i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "-s") == 0) {
 			if (i+1 < argc && strlen(argv[++i]) == 7) strncpy(standard, argv[i], 7);
@@ -548,7 +540,7 @@ int main (unsigned int argc, char** argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	uint8_t in[16];
+	uint8_t in[Nb*4];
 	
 	// reading input data from file into block, only the first 16 bytes are used.
 	// if input is less than 16 bytes, we extend to 16 bytes with zeroes.
@@ -561,14 +553,55 @@ int main (unsigned int argc, char** argv) {
 			exit(EXIT_FAILURE);
 		}
 
-		unsigned int bytes_read = fread(in, sizeof(uint8_t), 16, fin);
+		unsigned int bytes_read = fread(in, sizeof(uint8_t), Nb*4, fin);
+		if (bytes_read < Nb*4)
+			for (unsigned int i = bytes_read; i < Nb*4; ++i) 
+				in[i] = 0;
 
 		if (fclose(fin) != 0) {
 			fprintf(stderr, "ERROR: Unable to close input file.\n");
 			exit(1);
 		}
 	}
-	//else fin = 0;
+	else {
+		printf("No input file found.\nInput block as hex(16 bytes):\n");
+		for (unsigned int i = 0; i < Nb*4; ++i) {
+			char str[3];
+			scanf("%s", str);
+			in[i] = strtoul(str, NULL, 16);
+		}
+	}
+
+	
+	unsigned int Nk = getNk(standard);
+	uint8_t key[Nk*4];
+
+	FILE *fkeyin;
+	if (fkeyName != NULL) {
+		fkeyin = fopen(fkeyName, "r");
+		if (fkeyin == NULL) {
+			fprintf(stderr, "ERROR: Key file not found\n");
+			exit(EXIT_FAILURE);
+		}
+
+		unsigned int bytes_read = fread(key, sizeof(uint8_t), Nk*4, fkeyin);
+		if (bytes_read < Nk*4)
+			for (unsigned int i = bytes_read; i < Nk*4; ++i) 
+				key[i] = 0;
+
+		if (fclose(fkeyin) != 0) {
+			fprintf(stderr, "ERROR: Unable to close key file.\n");
+			exit(1);
+		}
+	}
+	else {
+		printf("No key file found.\nInput key as hex(%d bytes):\n", Nk*4);
+		for (unsigned int i = 0; i < Nk*4; ++i) {
+			char str[3];
+			scanf("%s", str);
+			key[i] = strtoul(str, NULL, 16);
+		}
+	}
 
 	uint8_t test_in[16] = { 
 		0x00, 0x11, 0x22, 0x33, 
@@ -577,8 +610,6 @@ int main (unsigned int argc, char** argv) {
 		0xcc, 0xdd, 0xee, 0xff 
 		};
 
-	return 0;
-    
 	uint8_t out[16] = { 
 		0x00, 0x00, 0x00, 0x00, 
 		0x00, 0x00, 0x00, 0x00,
@@ -593,27 +624,28 @@ int main (unsigned int argc, char** argv) {
 			statein[j][i] = in[(4*i)+j];
 			stateout[i][j] = 0x00;
 		}
-	
 
-	
-	printf("C.1   AES-128 (Nk=4, Nr=10)\n\n");
-	printf("PLAINTEXT:          00112233445566778899aabbccddeeff\n");
-	printf("KEY:                000102030405060708090a0b0c0d0e0f\n");
+	printf("AES-128 (Nk=4, Nr=10)\n\n");
+	printf("PLAINTEXT:          ");
+	for (unsigned int i = 0; i < Nb*4; ++i)
+		printf("%.2x",in[i]);
 	printf("\n");
+	printf("KEY:                ");
+	for (unsigned int i = 0; i < Nk*4; ++i)
+		printf("%.2x",key[i]);
+	printf("\n\n");
 
-	uint8_t key128[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
-		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-
-	encryptBlock(statein, stateout, key128, standard, verbose);
+	encryptBlock(statein, stateout, key, Nk, verbose);
 
 	printf("round[10].output    ");
 	printfinal(stateout, out);
 
-	decryptBlock(stateout, statein, key128, standard, verbose);
+	decryptBlock(stateout, statein, key, Nk, verbose);
 	
 	printf("round[10].ioutput   ");
 	printfinal(statein, in);
 
+	return 0;
 	
 	
 	printf("\nC.2   AES-192 (Nk=6, Nr=12)\n\n");
@@ -625,12 +657,12 @@ int main (unsigned int argc, char** argv) {
 		0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16 , 0x17 };
 
 	strncpy(standard, "aes-192", 7);
-	encryptBlock(statein, stateout, key192, standard, verbose);
+	encryptBlock(statein, stateout, key192, Nk, verbose);
 
 	printf("round[12].output    ");
 	printfinal(stateout, out);
 
-	decryptBlock(stateout, statein, key192, standard, verbose);
+	decryptBlock(stateout, statein, key192, Nk, verbose);
 	
 	printf("round[12].ioutput   ");
 	printfinal(statein, in);
@@ -647,12 +679,12 @@ int main (unsigned int argc, char** argv) {
 		0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
 
 	strncpy(standard, "aes-256", 7);
-	encryptBlock(statein, stateout, key256, standard, verbose);
+	encryptBlock(statein, stateout, key256, Nk, verbose);
 
 	printf("round[14].output    ");
 	printfinal(stateout, out);
 
-	decryptBlock(stateout, statein, key256, standard, verbose);
+	decryptBlock(stateout, statein, key256, Nk, verbose);
 	
 	printf("round[14].ioutput   ");
 	printfinal(statein, in);
