@@ -458,7 +458,8 @@ void encryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, char standa
 	else if (strcmp(standard, "aes-256") == 0)
 		Nk = 8;
 	else {
-		;
+		fprintf(stderr, "ERROR: Encryption standard not identified.\nUse argument: -aes[128|192|256]\n");
+		exit(EXIT_FAILURE);
 	}
 	Nr = Nk + 6;
 
@@ -478,7 +479,8 @@ void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, char standa
 	else if (strcmp(standard, "aes-256") == 0)
 		Nk = 8;
 	else {
-		;
+		fprintf(stderr, "ERROR: Encryption standard not identified.\nUse argument: -s aes[128|192|256]\n");
+		exit(EXIT_FAILURE);
 	}
 	Nr = Nk + 6;
 
@@ -487,10 +489,67 @@ void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, char standa
 	invCipher(out, in, ekey, Nk, verbose);
 }
 
-int main (int argc, char** argv) {
+int main (unsigned int argc, char** argv) {
+
+	// command line parsing
+	if (argc < 3) {
+		fprintf(stderr, "ERROR: Improper number of arguments.\nTry: ./AES --help\n");
+		exit(EXIT_FAILURE);
+	}
 
 	bool verbose = false;
-	char standard[7] = "aes-128";
+	char standard[7] = "", *finName = NULL, *fkeyName = NULL, *foutName = NULL;
+	for (unsigned int i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "-s") == 0) {
+			if (i+1 < argc && strlen(argv[++i]) == 7) strncpy(standard, argv[i], 7);
+			else {
+				fprintf(stderr, "ERROR: Encryption standard not identified.\nUse argument: -s aes[128|192|256]\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+		else if (strcmp(argv[i], "-fin") == 0) {
+			if (i+1 < argc && argv[++i][0] != '-') {
+				finName = malloc((strlen(argv[i])+1) * sizeof(char));
+				strncpy(finName, argv[i], strlen(argv[i]));
+			}  
+			else {
+				fprintf(stderr, "ERROR: Input file name not found.\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+		else if (strcmp(argv[i], "-fkey") == 0) {
+			if (i+1 < argc && argv[++i][0] != '-') {
+				fkeyName = malloc((strlen(argv[i])+1) * sizeof(char));
+				strncpy(fkeyName, argv[i], strlen(argv[i]));
+			}  
+			else {
+				fprintf(stderr, "ERROR: Key file name not found.\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+		else if (strcmp(argv[i], "-fout") == 0) {
+			if (i+1 < argc && argv[++i][0] != '-') {
+				foutName = malloc((strlen(argv[i])+1) * sizeof(char));
+				strncpy(foutName, argv[i], strlen(argv[i]));
+			}  
+			else {
+				fprintf(stderr, "ERROR: Output file name not found.\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+		else if (strcmp(argv[i], "-verbose") == 0) verbose = true;
+		else {
+			fprintf(stderr, "ERROR: Unrecognized command line argument `%s`\n", argv[i]);
+			exit(EXIT_FAILURE);
+		}
+	}
+	if (strcmp(standard, "") == 0) {
+		fprintf(stderr, "ERROR: No Encryption standard given.\nTry ./AES --help\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	
+
 
 	uint8_t in[16] = { 
 		0x00, 0x11, 0x22, 0x33, 
@@ -499,7 +558,9 @@ int main (int argc, char** argv) {
 		0xcc, 0xdd, 0xee, 0xff 
 		};
 
-    uint8_t out[16] = { 
+	return 0;
+    
+	uint8_t out[16] = { 
 		0x00, 0x00, 0x00, 0x00, 
 		0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 
