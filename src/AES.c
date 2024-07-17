@@ -547,11 +547,30 @@ int main (unsigned int argc, char** argv) {
 		fprintf(stderr, "ERROR: No Encryption standard given.\nTry ./AES --help\n");
 		exit(EXIT_FAILURE);
 	}
-	
-	
 
+	uint8_t in[16];
+	
+	// reading input data from file into block, only the first 16 bytes are used.
+	// if input is less than 16 bytes, we extend to 16 bytes with zeroes.
+	// if no file is given we use standard input.
+	FILE *fin;
+	if (finName != NULL) {
+		fin = fopen(finName, "r");
+		if (fin == NULL) {
+			fprintf(stderr, "ERROR: Input file not found\n");
+			exit(EXIT_FAILURE);
+		}
 
-	uint8_t in[16] = { 
+		unsigned int bytes_read = fread(in, sizeof(uint8_t), 16, fin);
+
+		if (fclose(fin) != 0) {
+			fprintf(stderr, "ERROR: Unable to close input file.\n");
+			exit(1);
+		}
+	}
+	//else fin = 0;
+
+	uint8_t test_in[16] = { 
 		0x00, 0x11, 0x22, 0x33, 
 		0x44, 0x55, 0x66, 0x77, 
 		0x88, 0x99, 0xaa, 0xbb, 
