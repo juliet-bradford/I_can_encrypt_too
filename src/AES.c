@@ -1,9 +1,11 @@
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 
+unsigned int Nb = 4;
 
-unsigned int Rcon[] = { 
+uint32_t Rcon[] = { 
 	0x00000000, 0x01000000, 0x02000000, 0x04000000, 
 	0x08000000, 0x10000000, 0x20000000, 0x40000000, 
 	0x80000000, 0x1B000000, 0x36000000, 0x6C000000, 
@@ -58,7 +60,7 @@ uint8_t InvSbox[16][16] = {
 };
 
 
-unsigned int expanded[44] = { 
+uint32_t expanded[44] = { 
 	0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c,
 	0xa0fafe17, 0x88542cb1, 0x23a33939, 0x2a6c7605,
 	0xf2c295f2, 0x7a96b943, 0x5935807a, 0x7359f67f,
@@ -145,9 +147,9 @@ void invSubBytes (uint8_t state[4][4]) {
 			state[i][j] = invSubByte(state[i][j]);
 }
 
-unsigned int subWord (unsigned int w) {
+uint32_t subWord (uint32_t w) {
 	
-	unsigned int tempw = 0;
+	uint32_t tempw = 0;
 	for (int i=0; i<4; ++i) {
 		uint8_t temp = (w >> (8*i)) & 0xff;
 		temp = subByte(temp);
@@ -157,7 +159,7 @@ unsigned int subWord (unsigned int w) {
 	return tempw;
 }
 
-unsigned int rotWord (unsigned int w) {
+uint32_t rotWord (uint32_t w) {
 
 	return (w << 8) | ((w >> 24) & 0xff);
 }
@@ -165,7 +167,7 @@ unsigned int rotWord (unsigned int w) {
 void shiftRows (uint8_t state[4][4]) {
 	
 	for (int i=1; i<4; ++i) {
-		unsigned int temp = (state[i][0] << 24) | ((state[i][1] << 16) & 0xff0000) |
+		uint32_t temp = (state[i][0] << 24) | ((state[i][1] << 16) & 0xff0000) |
 			((state[i][2] << 8) & 0xff00) | ((state[i][3]) & 0xff);
 		for (int j=0; j<i; ++j)
 			temp = rotWord(temp);
@@ -177,7 +179,7 @@ void shiftRows (uint8_t state[4][4]) {
 void invShiftRows (uint8_t state[4][4]) {
 	
 	for (int i=1; i<4; ++i) {
-		unsigned int temp = (state[i][0] << 24) | ((state[i][1] << 16) & 0xff0000) |
+		uint32_t temp = (state[i][0] << 24) | ((state[i][1] << 16) & 0xff0000) |
 			((state[i][2] << 8) & 0xff00) | ((state[i][3]) & 0xff);
 		for (int j=4-i; j>0; --j)
 			temp = rotWord(temp);
@@ -216,7 +218,7 @@ void invMixColumns (uint8_t state[4][4]) {
 }
 
 
-void addRoundKey(uint8_t state[4][4], unsigned int *w, unsigned int round) {
+void addRoundKey(uint8_t state[4][4], uint32_t *w, unsigned int round) {
 
 	for (int i=round; i<round+4; ++i) {
 		for (int j=0; j<4; ++j) {
@@ -227,7 +229,7 @@ void addRoundKey(uint8_t state[4][4], unsigned int *w, unsigned int round) {
 }
 
 
-void keyExpansion (uint8_t *key, unsigned int *w, unsigned int Nk) {
+void keyExpansion (uint8_t *key, uint32_t *w, unsigned int Nk) {
 
 	unsigned int Nr;
 	if (Nk == 4) Nr = 10;
@@ -235,7 +237,7 @@ void keyExpansion (uint8_t *key, unsigned int *w, unsigned int Nk) {
 	else Nr = 14;
 
 
-	unsigned int temp;
+	uint32_t temp;
 
 	for (int i=0; i<Nk; ++i)
 		w[i] = (key[4*i] << 24) | ((key[4*i+1] << 16) & 0xff0000) |
@@ -256,74 +258,98 @@ void keyExpansion (uint8_t *key, unsigned int *w, unsigned int Nk) {
 }
 
 
-void cipher (uint8_t in[4][4], uint8_t out[4][4], unsigned int *w, unsigned int Nr) {
+void cipher (uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, unsigned int Nr, bool verbose) {
 	
 	uint8_t state[4][4];
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
 			state[i][j] = in[i][j];
 
-	int round = 0;
+	unsigned int round = 0;
 	
-	printf("CIPHER (ENCRYPT):\n");
-	
-	printf("round[%2d].input     ", round);
-	printstate(state);
+	if (verbose) {
+		printf("CIPHER (ENCRYPT):\n");
+		printf("round[%2d].input     ", round);
+		printstate(state);
+	}
 
-	addRoundKey(state, w, round);
+	uint32_t ekey[Nb*(Nr+1)];
+	keyExpansion(key, ekey, Nk);
 
-	printf("round[%2d].k_sch     ", round);
-	for (int i=4*round; i<(4*round)+4; ++i)
-		printf("%.8x", w[i]);
-	printf("\n");
+	addRoundKey(state, ekey, round);
+
+	if (verbose) {
+		printf("round[%2d].k_sch     ", round);
+		for (int i=4*round; i<(4*round)+4; ++i)
+			printf("%.8x", ekey[i]);
+		printf("\n");
+	}
 
 	for (round=1; round<Nr; ++round) {
 		
-		printf("round[%2d].start     ", round);
-		printstate(state);
+		if (verbose) {		
+			printf("round[%2d].start     ", round);
+			printstate(state);
+		}
 		
 		subBytes(state);
 
-		printf("round[%2d].s_box     ", round);
-		printstate(state);
+		if (verbose) {
+			printf("round[%2d].s_box     ", round);
+			printstate(state);
+		}
 
 		shiftRows(state);
 
-		printf("round[%2d].s_row     ", round);
-		printstate(state);
+		if (verbose) {
+			printf("round[%2d].s_row     ", round);
+			printstate(state);
+		}
 
 		mixColumns(state);
 
-		printf("round[%2d].m_col     ", round);
-		printstate(state);
+		if (verbose) {
+			printf("round[%2d].m_col     ", round);
+			printstate(state);
+		}
 
-		addRoundKey(state, w, 4*round);
+		addRoundKey(state, ekey, 4*round);
 
-		printf("round[%2d].k_sch     ", round);
-		for (int i=4*round; i<(4*round)+4; ++i)
-			printf("%.8x", w[i]);
-		printf("\n");
+		if (verbose) {
+			printf("round[%2d].k_sch     ", round);
+			for (int i=4*round; i<(4*round)+4; ++i)
+				printf("%.8x", ekey[i]);
+			printf("\n");
+		}
 	}
-		
-	printf("round[%2d].start     ", round);
-	printstate(state);
+
+	if (verbose) {	
+		printf("round[%2d].start     ", round);
+		printstate(state);
+	}
 
 	subBytes(state);
 
-	printf("round[%2d].s_box     ", round);
-	printstate(state);
+	if (verbose) {
+		printf("round[%2d].s_box     ", round);
+		printstate(state);
+	}
 
 	shiftRows(state);
 		
-	printf("round[%2d].s_row     ", round);
-	printstate(state);
+	if (verbose) {
+		printf("round[%2d].s_row     ", round);
+		printstate(state);
+	}
 	
-	addRoundKey(state, w, 4*round);
+	addRoundKey(state, ekey, 4*round);
 		
-	printf("round[%2d].k_sch     ", round);
-	for (int i=4*round; i<(4*round)+4; ++i)
-		printf("%.8x", w[i]);
-	printf("\n");
+	if (verbose) {
+		printf("round[%2d].k_sch     ", round);
+		for (int i=4*round; i<(4*round)+4; ++i)
+			printf("%.8x", ekey[i]);
+		printf("\n");
+	}
 
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
@@ -331,7 +357,7 @@ void cipher (uint8_t in[4][4], uint8_t out[4][4], unsigned int *w, unsigned int 
 }
 
 
-void invCipher (uint8_t in[4][4], uint8_t out[4][4], unsigned int *w, unsigned int Nr) {
+void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, unsigned int Nr, bool verbose) {
 	
 	uint8_t state[4][4];
 	for (int i=0; i<4; ++i)
@@ -340,64 +366,87 @@ void invCipher (uint8_t in[4][4], uint8_t out[4][4], unsigned int *w, unsigned i
 
 	int round = Nr;
 	
-	printf("\nINVERSE CIPHER (DECRYPT):\n");
-	printf("round[%2d].iinput    ", Nr-round);
-	printstate(state);
-	
-	addRoundKey(state, w, 4*round);
-		
-	printf("round[%2d].ik_sch    ", Nr-round);
-	for (int i=4*round; i<(4*round)+4; ++i)
-		printf("%.8x", w[i]);
-	printf("\n");
+	if (verbose) {
+		printf("\nINVERSE CIPHER (DECRYPT):\n");
+		printf("round[%2d].iinput    ", Nr-round);
+		printstate(state);
+	}
+
+	uint32_t ekey[Nb*(Nr+1)];
+	keyExpansion(key, ekey, Nk);
+
+	addRoundKey(state, ekey, 4*round);
+
+	if (verbose) {	
+		printf("round[%2d].ik_sch    ", Nr-round);
+		for (int i=4*round; i<(4*round)+4; ++i)
+			printf("%.8x", ekey[i]);
+		printf("\n");
+	}
 
 	for (round=Nr-1; round>0; --round) {
 
-		printf("round[%2d].istart    ", Nr-round);
-		printstate(state);
+		if (verbose) {
+			printf("round[%2d].istart    ", Nr-round);
+			printstate(state);
+		}
 
 		invShiftRows(state);
 
-		printf("round[%2d].is_row    ", Nr-round);
-		printstate(state);
-		
+		if (verbose) {
+			printf("round[%2d].is_row    ", Nr-round);
+			printstate(state);
+		}
+
 		invSubBytes(state);
 
-		printf("round[%2d].is_box    ", Nr-round);
-		printstate(state);
+		if (verbose) {
+			printf("round[%2d].is_box    ", Nr-round);
+			printstate(state);
+		}
 
-		addRoundKey(state, w, 4*round);
+		addRoundKey(state, ekey, 4*round);
 
-		printf("round[%2d].ik_sch    ", Nr-round);
-		for (int i=4*round; i<(4*round)+4; ++i)
-			printf("%.8x", w[i]);
-		printf("\n");
-		
-		printf("round[%2d].ik_add    ", Nr-round);
-		printstate(state);
+		if (verbose) {
+			printf("round[%2d].ik_sch    ", Nr-round);
+			for (int i=4*round; i<(4*round)+4; ++i)
+				printf("%.8x", ekey[i]);
+			printf("\n");
+			
+			printf("round[%2d].ik_add    ", Nr-round);
+			printstate(state);
+		}
 		
 		invMixColumns(state);
 	}
 
-	printf("round[%2d].istart    ", Nr-round);
-	printstate(state);
+	if (verbose) {
+		printf("round[%2d].istart    ", Nr-round);
+		printstate(state);
+	}
 
 	invShiftRows(state);
 
-	printf("round[%2d].is_row    ", Nr-round);
-	printstate(state);
+	if (verbose) {
+		printf("round[%2d].is_row    ", Nr-round);
+		printstate(state);
+	}
 
 	invSubBytes(state);
 
-	printf("round[%2d].is_box    ", Nr-round);
-	printstate(state);
+	if (verbose) {
+		printf("round[%2d].is_box    ", Nr-round);
+		printstate(state);
+	}
 
-	addRoundKey(state, w, 0);
+	addRoundKey(state, ekey, 0);
 
-	printf("round[%2d].ik_sch    ", Nr-round);
-	for (int i=4*round; i<(4*round)+4; ++i)
-		printf("%.8x", w[i]);
-	printf("\n");
+	if (verbose) {
+		printf("round[%2d].ik_sch    ", Nr-round);
+		for (int i=4*round; i<(4*round)+4; ++i)
+			printf("%.8x", ekey[i]);
+		printf("\n");
+	}
 
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
@@ -406,6 +455,8 @@ void invCipher (uint8_t in[4][4], uint8_t out[4][4], unsigned int *w, unsigned i
 
 
 int main (int argc, char** argv) {
+
+	bool verbose = false;
 
 	uint8_t in[16] = { 
 		0x00, 0x11, 0x22, 0x33, 
@@ -438,16 +489,13 @@ int main (int argc, char** argv) {
 
 	uint8_t key128[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
 		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
-	unsigned int w128[44];
 
-	keyExpansion(key128, w128, 4);
-
-	cipher(statein, stateout, w128, 10);
+	cipher(statein, stateout, key128, 4, 10, verbose);
 
 	printf("round[10].output    ");
 	printfinal(stateout, out);
 
-	invCipher(stateout, statein, w128, 10);
+	invCipher(stateout, statein, key128, 4, 10, verbose);
 
 	
 	printf("round[10].ioutput   ");
@@ -462,16 +510,16 @@ int main (int argc, char** argv) {
 	
 	uint8_t key192[24] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
 		0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16 , 0x17 };
-	unsigned int w192[52];
+	//uint32_t w192[52];
 
-	keyExpansion(key192, w192, 6);
+	//keyExpansion(key192, w192, 6);
 
-	cipher(statein, stateout, w192, 12);
+	cipher(statein, stateout, key192, 6, 12, verbose);
 
 	printf("round[12].output    ");
 	printfinal(stateout, out);
 
-	invCipher(stateout, statein, w192, 12);
+	invCipher(stateout, statein, key192, 6, 12, verbose);
 	
 	printf("round[12].ioutput   ");
 	printfinal(statein, in);
@@ -485,16 +533,16 @@ int main (int argc, char** argv) {
 	uint8_t key256[32] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
 		0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 
 		0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
-	unsigned int w256[60];
+	//uint32_t w256[60];
 
-	keyExpansion(key256, w256, 8);
+	//keyExpansion(key256, w256, 8);
 
-	cipher(statein, stateout, w256, 14);
+	cipher(statein, stateout, key256, 8, 14, verbose);
 
 	printf("round[14].output    ");
 	printfinal(stateout, out);
 
-	invCipher(stateout, statein, w256, 14);
+	invCipher(stateout, statein, key256, 8, 14, verbose);
 	
 	printf("round[14].ioutput   ");
 	printfinal(statein, in);
