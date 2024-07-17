@@ -577,9 +577,8 @@ int main (unsigned int argc, char** argv) {
 	unsigned int Nk = getNk(standard);
 	uint8_t key[Nk*4];
 
-	FILE *fkeyin;
 	if (fkeyName != NULL) {
-		fkeyin = fopen(fkeyName, "r");
+		FILE *fkeyin = fopen(fkeyName, "r");
 		if (fkeyin == NULL) {
 			fprintf(stderr, "ERROR: Key file not found\n");
 			exit(EXIT_FAILURE);
@@ -604,6 +603,7 @@ int main (unsigned int argc, char** argv) {
 			key[i] = strtoul(str, NULL, 16);
 		}
 	}
+
 
 	uint8_t test_in[16] = { 
 		0x00, 0x11, 0x22, 0x33, 
@@ -641,6 +641,24 @@ int main (unsigned int argc, char** argv) {
 
 	printf("round[10].output    ");
 	printfinal(stateout, out);
+
+	if (foutName != NULL) {
+		FILE *fout = fopen(foutName, "w");
+		if (fout == NULL) {
+			fprintf(stderr, "ERROR: Output file unable to open.\n");
+			exit(EXIT_FAILURE);
+		}
+		
+		fwrite(out, sizeof(uint8_t), Nb*4, fout);
+
+		if (fclose(fout) != 0) {
+			fprintf(stderr, "ERROR: Unable to close output file.\n");
+			exit(1);
+		}
+	}
+	else {
+		;//printfinal(stateout, out);
+	}
 
 	decryptBlock(stateout, statein, key, Nk, verbose);
 	
