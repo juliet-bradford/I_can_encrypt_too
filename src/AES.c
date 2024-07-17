@@ -1,23 +1,25 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
 
-unsigned int Rcon[] = { 0x00000000,
-	0x01000000, 0x02000000, 0x04000000, 0x08000000,
-	0x10000000, 0x20000000, 0x40000000, 0x80000000,
-	0x1B000000, 0x36000000, 0x6C000000, 0xD8000000,
-	0xAB000000, 0x4D000000, 0x9A000000, 0x2F000000,
-	0x5E000000, 0xBC000000, 0x63000000, 0xC6000000,
-	0x97000000, 0x35000000, 0x6A000000, 0xD4000000,
-	0xB3000000, 0x7D000000, 0xFA000000, 0xEF000000,
-	0xC5000000, 0x91000000, 0x39000000, 0x72000000,
-	0xE4000000, 0xD3000000, 0xBD000000, 0x61000000,
-	0xC2000000, 0x9F000000, 0x25000000, 0x4A000000,
-	0x94000000, 0x33000000, 0x66000000, 0xCC000000,
-	0x83000000, 0x1D000000, 0x3A000000, 0x74000000,
-	0xE8000000, 0xCB000000, 0x8D000000};
+unsigned int Rcon[] = { 
+	0x00000000, 0x01000000, 0x02000000, 0x04000000, 
+	0x08000000, 0x10000000, 0x20000000, 0x40000000, 
+	0x80000000, 0x1B000000, 0x36000000, 0x6C000000, 
+	0xD8000000, 0xAB000000, 0x4D000000, 0x9A000000, 
+	0x2F000000, 0x5E000000, 0xBC000000, 0x63000000, 
+	0xC6000000, 0x97000000, 0x35000000, 0x6A000000, 
+	0xD4000000, 0xB3000000, 0x7D000000, 0xFA000000, 
+	0xEF000000, 0xC5000000, 0x91000000, 0x39000000, 
+	0x72000000, 0xE4000000, 0xD3000000, 0xBD000000, 
+	0x61000000, 0xC2000000, 0x9F000000, 0x25000000, 
+	0x4A000000, 0x94000000, 0x33000000, 0x66000000,
+    0xCC000000, 0x83000000, 0x1D000000, 0x3A000000, 
+	0x74000000, 0xE8000000, 0xCB000000, 0x8D000000
+};
 
-char Sbox[16][16] = {
+uint8_t Sbox[16][16] = {
 	{ 0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76 },
 	{ 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0 },
 	{ 0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15 },
@@ -36,7 +38,7 @@ char Sbox[16][16] = {
 	{ 0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16 }
 };
 
-char InvSbox[16][16] = {
+uint8_t InvSbox[16][16] = {
 	{ 0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb } ,
 	{ 0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb } ,
 	{ 0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e } ,
@@ -56,7 +58,8 @@ char InvSbox[16][16] = {
 };
 
 
-unsigned int expanded[44] = { 0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c,
+unsigned int expanded[44] = { 
+	0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c,
 	0xa0fafe17, 0x88542cb1, 0x23a33939, 0x2a6c7605,
 	0xf2c295f2, 0x7a96b943, 0x5935807a, 0x7359f67f,
 	0x3d80477d, 0x4716fe3e, 0x1e237e44, 0x6d7a883b,
@@ -66,11 +69,12 @@ unsigned int expanded[44] = { 0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c,
 	0x4e54f70e, 0x5f5fc9f3, 0x84a64fb2, 0x4ea6dc4f,
 	0xead27321, 0xb58dbad2, 0x312bf560, 0x7f8d292f,
 	0xac7766f3, 0x19fadc21, 0x28d12941, 0x575c006e,
-	0xd014f9a8, 0xc9ee2589, 0xe13f0cc8, 0xb6630ca6 };
+	0xd014f9a8, 0xc9ee2589, 0xe13f0cc8, 0xb6630ca6 
+};
 
 
 
-void printstate(char state[4][4]) {
+void printstate(uint8_t state[4][4]) {
 	
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
@@ -78,7 +82,7 @@ void printstate(char state[4][4]) {
 	printf("\n");
 }
 
-void printfinal(char state[4][4], char final[16]) {
+void printfinal(uint8_t state[4][4], uint8_t final[16]) {
 
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
@@ -89,18 +93,18 @@ void printfinal(char state[4][4], char final[16]) {
 	printf("\n");
 }
 
-char ffAdd (char x, char y) {
+uint8_t ffAdd (uint8_t x, uint8_t y) {
 	return x ^ y;
 }
 
-char xtime (char x) {
+uint8_t xtime (uint8_t x) {
 	if (x & 128) return (x << 1) ^ 27;
 	else return x << 1;
 }
 
-char ffMultiply (char a, char b) {
+uint8_t ffMultiply (uint8_t a, uint8_t b) {
 	
-	char sum = 0;
+	uint8_t sum = 0;
 	for (int i=0; i<8; ++i) {
 		if (a & (1 << i))
 			sum = ffAdd(sum, b);
@@ -111,7 +115,7 @@ char ffMultiply (char a, char b) {
 	return sum;
 }
 
-char subByte (char a) {
+uint8_t subByte (uint8_t a) {
 	
 	int i = (a & 0xf0) >> 4;
 	int j = a & 0x0f;
@@ -119,7 +123,7 @@ char subByte (char a) {
 	return Sbox[i][j];
 }
 
-char invSubByte (char a) {
+uint8_t invSubByte (uint8_t a) {
 	
 	int i = (a & 0xf0) >> 4;
 	int j = a & 0x0f;
@@ -127,14 +131,14 @@ char invSubByte (char a) {
 	return InvSbox[i][j];
 }
 
-void subBytes (char state[4][4]) {
+void subBytes (uint8_t state[4][4]) {
 	
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
 			state[i][j] = subByte(state[i][j]);
 }
 
-void invSubBytes (char state[4][4]) {
+void invSubBytes (uint8_t state[4][4]) {
 	
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
@@ -145,7 +149,7 @@ unsigned int subWord (unsigned int w) {
 	
 	unsigned int tempw = 0;
 	for (int i=0; i<4; ++i) {
-		char temp = (w >> (8*i)) & 0xff;
+		uint8_t temp = (w >> (8*i)) & 0xff;
 		temp = subByte(temp);
 		tempw |= (temp << (8*i)) & (0xff << (8*i));
 	}
@@ -158,7 +162,7 @@ unsigned int rotWord (unsigned int w) {
 	return (w << 8) | ((w >> 24) & 0xff);
 }
 
-void shiftRows (char state[4][4]) {
+void shiftRows (uint8_t state[4][4]) {
 	
 	for (int i=1; i<4; ++i) {
 		unsigned int temp = (state[i][0] << 24) | ((state[i][1] << 16) & 0xff0000) |
@@ -170,7 +174,7 @@ void shiftRows (char state[4][4]) {
 	}
 }
 
-void invShiftRows (char state[4][4]) {
+void invShiftRows (uint8_t state[4][4]) {
 	
 	for (int i=1; i<4; ++i) {
 		unsigned int temp = (state[i][0] << 24) | ((state[i][1] << 16) & 0xff0000) |
@@ -183,11 +187,11 @@ void invShiftRows (char state[4][4]) {
 }
 
 
-void mixColumns (char state[4][4]) {
+void mixColumns (uint8_t state[4][4]) {
 	
 	for (int j=0; j<4; ++j) {
 		
-		char temp[4];
+		uint8_t temp[4];
 		for (int i=0; i<4; ++i)
 			temp[i] = state[i][j];
 
@@ -197,11 +201,11 @@ void mixColumns (char state[4][4]) {
 	}
 }
 
-void invMixColumns (char state[4][4]) {
+void invMixColumns (uint8_t state[4][4]) {
 
 	for (int j=0; j<4; ++j) {
 		
-		char temp[4];
+		uint8_t temp[4];
 		for (int i=0; i<4; ++i)
 			temp[i] = state[i][j];
 
@@ -212,7 +216,7 @@ void invMixColumns (char state[4][4]) {
 }
 
 
-void addRoundKey(char state[4][4], unsigned int *w, unsigned int round) {
+void addRoundKey(uint8_t state[4][4], unsigned int *w, unsigned int round) {
 
 	for (int i=round; i<round+4; ++i) {
 		for (int j=0; j<4; ++j) {
@@ -223,7 +227,7 @@ void addRoundKey(char state[4][4], unsigned int *w, unsigned int round) {
 }
 
 
-void keyExpansion (char *key, unsigned int *w, unsigned int Nk) {
+void keyExpansion (uint8_t *key, unsigned int *w, unsigned int Nk) {
 
 	unsigned int Nr;
 	if (Nk == 4) Nr = 10;
@@ -252,9 +256,9 @@ void keyExpansion (char *key, unsigned int *w, unsigned int Nk) {
 }
 
 
-void cipher (char in[4][4], char out[4][4], unsigned int *w, unsigned int Nr) {
+void cipher (uint8_t in[4][4], uint8_t out[4][4], unsigned int *w, unsigned int Nr) {
 	
-	char state[4][4];
+	uint8_t state[4][4];
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
 			state[i][j] = in[i][j];
@@ -327,9 +331,9 @@ void cipher (char in[4][4], char out[4][4], unsigned int *w, unsigned int Nr) {
 }
 
 
-void invCipher (char in[4][4], char out[4][4], unsigned int *w, unsigned int Nr) {
+void invCipher (uint8_t in[4][4], uint8_t out[4][4], unsigned int *w, unsigned int Nr) {
 	
-	char state[4][4];
+	uint8_t state[4][4];
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
 			state[i][j] = in[i][j];
@@ -401,14 +405,23 @@ void invCipher (char in[4][4], char out[4][4], unsigned int *w, unsigned int Nr)
 }
 
 
-int main () {
+int main (int argc, char** argv) {
 
-	char in[16] = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 
-		0x88, 0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff };
-    char out[16] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	uint8_t in[16] = { 
+		0x00, 0x11, 0x22, 0x33, 
+		0x44, 0x55, 0x66, 0x77, 
+		0x88, 0x99, 0xaa, 0xbb, 
+		0xcc, 0xdd, 0xee, 0xff 
+		};
+
+    uint8_t out[16] = { 
+		0x00, 0x00, 0x00, 0x00, 
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 
+		0x00, 0x00, 0x00, 0x00 
+		};
 	
-	char statein[4][4], stateout[4][4];
+	uint8_t statein[4][4], stateout[4][4];
 
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j) {
@@ -423,7 +436,7 @@ int main () {
 	printf("KEY:                000102030405060708090a0b0c0d0e0f\n");
 	printf("\n");
 
-	char key128[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
+	uint8_t key128[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
 		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 	unsigned int w128[44];
 
@@ -447,7 +460,7 @@ int main () {
 	printf("KEY:                000102030405060708090a0b0c0d0e0f1011121314151617\n");
 	printf("\n");
 	
-	char key192[24] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
+	uint8_t key192[24] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
 		0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16 , 0x17 };
 	unsigned int w192[52];
 
@@ -469,7 +482,7 @@ int main () {
 	printf("KEY:                000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\n");
 	printf("\n");
 
-	char key256[32] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
+	uint8_t key256[32] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
 		0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 
 		0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
 	unsigned int w256[60];
