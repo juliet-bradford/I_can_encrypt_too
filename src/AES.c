@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 unsigned int Nb = 4;
 
@@ -447,7 +448,19 @@ void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int N
 			out[i][j] = state[i][j];
 }
 
-void encryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, unsigned int Nr, bool verbose) {
+void encryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, char standard[7], bool verbose) {
+
+	unsigned int Nk, Nr;
+	if (strcmp(standard, "aes-128") == 0) 
+		Nk = 4;
+	else if (strcmp(standard, "aes-192") == 0)
+		Nk = 6;
+	else if (strcmp(standard, "aes-256") == 0)
+		Nk = 8;
+	else {
+		;
+	}
+	Nr = Nk + 6;
 
 	uint32_t ekey[Nb*(Nr+1)];
 	keyExpansion(key, ekey, Nk);
@@ -455,7 +468,19 @@ void encryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned in
 
 }
 
-void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, unsigned int Nr, bool verbose) {
+void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, char standard[7], bool verbose) {
+
+	unsigned int Nk, Nr;
+	if (strcmp(standard, "aes-128") == 0) 
+		Nk = 4;
+	else if (strcmp(standard, "aes-192") == 0)
+		Nk = 6;
+	else if (strcmp(standard, "aes-256") == 0)
+		Nk = 8;
+	else {
+		;
+	}
+	Nr = Nk + 6;
 
 	uint32_t ekey[Nb*(Nr+1)];
 	keyExpansion(key, ekey, Nk);
@@ -465,6 +490,7 @@ void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned in
 int main (int argc, char** argv) {
 
 	bool verbose = false;
+	char standard[7] = "aes-128";
 
 	uint8_t in[16] = { 
 		0x00, 0x11, 0x22, 0x33, 
@@ -498,13 +524,12 @@ int main (int argc, char** argv) {
 	uint8_t key128[16] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 
 		0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f };
 
-	encryptBlock(statein, stateout, key128, 4, 10, verbose);
+	encryptBlock(statein, stateout, key128, standard, verbose);
 
 	printf("round[10].output    ");
 	printfinal(stateout, out);
 
-	decryptBlock(stateout, statein, key128, 4, 10, verbose);
-
+	decryptBlock(stateout, statein, key128, standard, verbose);
 	
 	printf("round[10].ioutput   ");
 	printfinal(statein, in);
@@ -518,20 +543,19 @@ int main (int argc, char** argv) {
 	
 	uint8_t key192[24] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
 		0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16 , 0x17 };
-	//uint32_t w192[52];
 
-	//keyExpansion(key192, w192, 6);
-
-	encryptBlock(statein, stateout, key192, 6, 12, verbose);
+	strncpy(standard, "aes-192", 7);
+	encryptBlock(statein, stateout, key192, standard, verbose);
 
 	printf("round[12].output    ");
 	printfinal(stateout, out);
 
-	decryptBlock(stateout, statein, key192, 6, 12, verbose);
+	decryptBlock(stateout, statein, key192, standard, verbose);
 	
 	printf("round[12].ioutput   ");
 	printfinal(statein, in);
 	
+
 
 	printf("\nC.3   AES-256 (Nk=8, Nr=14)\n\n");
 	printf("PLAINTEXT:          00112233445566778899aabbccddeeff\n");
@@ -541,16 +565,14 @@ int main (int argc, char** argv) {
 	uint8_t key256[32] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
 		0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 
 		0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
-	//uint32_t w256[60];
 
-	//keyExpansion(key256, w256, 8);
-
-	encryptBlock(statein, stateout, key256, 8, 14, verbose);
+	strncpy(standard, "aes-256", 7);
+	encryptBlock(statein, stateout, key256, standard, verbose);
 
 	printf("round[14].output    ");
 	printfinal(stateout, out);
 
-	decryptBlock(stateout, statein, key256, 8, 14, verbose);
+	decryptBlock(stateout, statein, key256, standard, verbose);
 	
 	printf("round[14].ioutput   ");
 	printfinal(statein, in);

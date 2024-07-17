@@ -1,6 +1,6 @@
 PROG = AES
 CC = gcc
-CFLAGS = -Wall
+CFLAGS = 
 
 SRC = $(wildcard src/*.c)
 OBJ = $(SRC:.c=.o)
