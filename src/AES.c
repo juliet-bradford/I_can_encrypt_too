@@ -342,7 +342,13 @@ void cipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, 
 		fprintf(fout, "\n");
 	}
 
-	fprintround(fout, state, round, "output");
+	if (verbose) fprintround(fout, state, round, "output");
+	else {
+		for (unsigned int i = 0; i < 4; ++i)
+			for (unsigned int j = 0; j < 4; ++j) 
+				fprintf(fout, "%.2x", state[j][i]);
+		fprintf(fout, "\n");
+	}
 
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
