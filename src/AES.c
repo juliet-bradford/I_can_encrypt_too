@@ -356,7 +356,7 @@ void cipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, 
 }
 
 
-void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, bool verbose) {
+void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, bool verbose, FILE *fout) {
 	
 	uint8_t state[4][4];
 	for (int i=0; i<4; ++i)
@@ -366,82 +366,81 @@ void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int N
 	int round = Nr;
 	
 	if (verbose) {
-		printf("\nINVERSE CIPHER (DECRYPT):\n");
-		printf("round[%2d].iinput    ", Nr-round);
-		printstate(state);
+		fprintf(fout, "INVERSE CIPHER (DECRYPT):\n");
+		fprintround(fout, state, Nr-round, "iinput");
 	}
 
 	addRoundKey(state, w, 4*round);
 
 	if (verbose) {	
-		printf("round[%2d].ik_sch    ", Nr-round);
+		fprintf(fout, "round[%2d].ik_sch    ", Nr-round);
 		for (int i=4*round; i<(4*round)+4; ++i)
-			printf("%.8x", w[i]);
-		printf("\n");
+			fprintf(fout, "%.8x", w[i]);
+		fprintf(fout, "\n");
 	}
 
 	for (round=Nr-1; round>0; --round) {
 
-		if (verbose) {
-			printf("round[%2d].istart    ", Nr-round);
-			printstate(state);
-		}
+		if (verbose)
+			fprintround(fout, state, Nr-round, "istart");
 
+		
 		invShiftRows(state);
 
-		if (verbose) {
-			printf("round[%2d].is_row    ", Nr-round);
-			printstate(state);
-		}
+		if (verbose)
+			fprintround(fout, state, Nr-round, "is_row");
+
 
 		invSubBytes(state);
 
-		if (verbose) {
-			printf("round[%2d].is_box    ", Nr-round);
-			printstate(state);
-		}
+		if (verbose)
+			fprintround(fout, state, Nr-round, "is_box");
+
 
 		addRoundKey(state, w, 4*round);
 
 		if (verbose) {
-			printf("round[%2d].ik_sch    ", Nr-round);
+			fprintf(fout, "round[%2d].ik_sch    ", Nr-round);
 			for (int i=4*round; i<(4*round)+4; ++i)
-				printf("%.8x", w[i]);
-			printf("\n");
+				fprintf(fout, "%.8x", w[i]);
+			fprintf(fout, "\n");
 			
-			printf("round[%2d].ik_add    ", Nr-round);
-			printstate(state);
 		}
-		
+
+		if (verbose)
+			fprintround(fout, state, Nr-round, "ik_add"); 
+
 		invMixColumns(state);
 	}
 
-	if (verbose) {
-		printf("round[%2d].istart    ", Nr-round);
-		printstate(state);
-	}
+	if (verbose)
+		fprintround(fout, state, Nr-round, "istart");
 
 	invShiftRows(state);
 
-	if (verbose) {
-		printf("round[%2d].is_row    ", Nr-round);
-		printstate(state);
-	}
+	if (verbose)
+		fprintround(fout, state, Nr-round, "is_row");
 
 	invSubBytes(state);
 
-	if (verbose) {
-		printf("round[%2d].is_box    ", Nr-round);
-		printstate(state);
-	}
+	if (verbose)
+		fprintround(fout, state, Nr-round, "is_box");
 
 	addRoundKey(state, w, 0);
 
 	if (verbose) {
-		printf("round[%2d].ik_sch    ", Nr-round);
+		fprintf(fout, "round[%2d].ik_sch    ", Nr-round);
 		for (int i=4*round; i<(4*round)+4; ++i)
-			printf("%.8x", w[i]);
-		printf("\n");
+			fprintf(fout, "%.8x", w[i]);
+		fprintf(fout, "\n");
+	}
+
+	if (verbose) fprintround(fout, state, Nr-round, "ioutput");
+	else {
+		for (unsigned int i = 0; i < 4; ++i)
+			for (unsigned int j = 0; j < 4; ++j) 
+				fprintf(fout, "%.2x", state[j][i]);
+		fprintf(fout, "\n");
 	}
 
 	for (int i=0; i<4; ++i)
@@ -473,13 +472,13 @@ void encryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned in
 
 }
 
-void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, bool verbose) {
+void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, bool verbose, FILE *fout) {
 
 	unsigned int Nr = Nk + 6;
 
 	uint32_t ekey[Nb*(Nr+1)];
 	keyExpansion(key, ekey, Nk);
-	invCipher(in, out, ekey, Nr, verbose);
+	invCipher(in, out, ekey, Nr, verbose, fout);
 }
 
 int main (unsigned int argc, char** argv) {
@@ -645,7 +644,21 @@ int main (unsigned int argc, char** argv) {
 
 
 	if (verbose) {
-		fprintf(fout, "AES-128 (Nk=4, Nr=10)\n\n");
+		switch (Nk) {
+			case 4:
+				fprintf(fout, "AES-128 ");
+				break;
+			case 6:
+				fprintf(fout, "AES-192 ");
+				break;
+			case 8:
+				fprintf(fout, "AES-256 ");
+				break;
+			default:
+				fprintf(stderr, "May god have mercy on your soul.\n");
+				exit(1);
+		}
+		fprintf(fout, "(Nk=%d, Nr=%d)\n\n", Nk, Nk+6);
 		fprintf(fout, "PLAINTEXT:          ");
 		for (unsigned int i = 0; i < Nb*4; ++i)
 			fprintf(fout, "%.2x",in[i]);
@@ -657,7 +670,7 @@ int main (unsigned int argc, char** argv) {
 	}
 
 	if (encrypt) encryptBlock(statein, stateout, key, Nk, verbose, fout);
-	else decryptBlock(statein, stateout, key, Nk, verbose);
+	else decryptBlock(statein, stateout, key, Nk, verbose, fout);
 
 	if (fout != stdout && fclose(fout) != 0) {
 		fprintf(stderr, "ERROR: Unable to close output file.\n");
