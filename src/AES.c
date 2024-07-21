@@ -77,14 +77,6 @@ uint32_t expanded[44] = {
 
 
 
-void printstate(uint8_t state[4][4]) {
-	
-	for (int i=0; i<4; ++i)
-		for (int j=0; j<4; ++j)
-			printf("%.2x", state[j][i] & 0xff);
-	printf("\n");
-}
-
 void fprintround(FILE *fout, uint8_t state[4][4], unsigned int round, char *name) {
 	fprintf(fout, "round[%2d].%-10s", round, name);
 
@@ -92,15 +84,6 @@ void fprintround(FILE *fout, uint8_t state[4][4], unsigned int round, char *name
 		for (int j=0; j<4; ++j)
 			fprintf(fout, "%.2x", state[j][i] & 0xff);
 	fprintf(fout, "\n");
-}
-
-void printfinal(uint8_t state[4][4]) {
-
-	for (int i=0; i<4; ++i)
-		for (int j=0; j<4; ++j)
-			printf("%.2x", state[j][i] & 0xff);
-
-	printf("\n");
 }
 
 uint8_t ffAdd (uint8_t x, uint8_t y) {
@@ -342,13 +325,8 @@ void cipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, 
 		fprintf(fout, "\n");
 	}
 
-	if (verbose) fprintround(fout, state, round, "output");
-	else {
-		for (unsigned int i = 0; i < 4; ++i)
-			for (unsigned int j = 0; j < 4; ++j) 
-				fprintf(fout, "%.2x", state[j][i]);
-		fprintf(fout, "\n");
-	}
+	if (verbose) 
+		fprintround(fout, state, round, "output");
 
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
@@ -672,55 +650,17 @@ int main (unsigned int argc, char** argv) {
 	if (encrypt) encryptBlock(statein, stateout, key, Nk, verbose, fout);
 	else decryptBlock(statein, stateout, key, Nk, verbose, fout);
 
+	for (int i = 0; i < 4; ++i)
+		for (int j = 0; j < 4; ++j)
+			out[(i*4)+j] = stateout[j][i];
+
+	if (!verbose) fwrite(out, sizeof(uint8_t), Nb*4, fout);
+
 	if (fout != stdout && fclose(fout) != 0) {
 		fprintf(stderr, "ERROR: Unable to close output file.\n");
 		exit(1);
 	}
 	
 	return 0;
-	
-	/*
-	printf("\nC.2   AES-192 (Nk=6, Nr=12)\n\n");
-	printf("PLAINTEXT:          00112233445566778899aabbccddeeff\n");
-	printf("KEY:                000102030405060708090a0b0c0d0e0f1011121314151617\n");
-	printf("\n");
-	
-	uint8_t key192[24] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
-		0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16 , 0x17 };
 
-	strncpy(standard, "aes-192", 7);
-	encryptBlock(statein, stateout, key192, Nk, verbose);
-
-	printf("round[12].output    ");
-	printfinal(stateout, out);
-
-	decryptBlock(stateout, statein, key192, Nk, verbose);
-	
-	printf("round[12].ioutput   ");
-	printfinal(statein, in);
-	
-
-
-	printf("\nC.3   AES-256 (Nk=8, Nr=14)\n\n");
-	printf("PLAINTEXT:          00112233445566778899aabbccddeeff\n");
-	printf("KEY:                000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\n");
-	printf("\n");
-
-	uint8_t key256[32] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 
-		0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 
-		0x1b, 0x1c, 0x1d, 0x1e, 0x1f };
-
-	strncpy(standard, "aes-256", 7);
-	encryptBlock(statein, stateout, key256, Nk, verbose);
-
-	printf("round[14].output    ");
-	printfinal(stateout, out);
-
-	decryptBlock(stateout, statein, key256, Nk, verbose);
-	
-	printf("round[14].ioutput   ");
-	printfinal(statein, in);
-
-	
-	return 0; */
 }
