@@ -462,7 +462,52 @@ void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned in
 int main (unsigned int argc, char** argv) {
 
 	// command line parsing
-	if (argc < 3) {
+	if (argc == 1) {
+		fprintf(stderr, "ERROR: Improper number of arguments.\nTry: ./AES --help\n");
+		exit(EXIT_FAILURE);
+	}
+	else if (strcmp(argv[1], "--help") == 0) {
+		fprintf(stdout, 
+		"Welcome to (an unofficial replication of) AES: the Advanced Encryption Standard (also known as Rijndael).\n" 
+		"This is meant purely for educational purposes and should absolutely not be used on anything that matters.\n\n" 
+		
+		"USAGE INFORMATION: ./AES -s aes-[128|192|256] [-d] [-fin filename] [-fkey filename] [-fout filename] [-verbose]\n\n" 
+		
+		"Encryption Standard (-s aes-[128|192|256]): Determines what encryption standard is used. Must be used with key of cooresponding size.\n\n" 
+		
+		"Decrypt or Encrypt ([-d]): Determines if the input block is to be encrypted or decrypted. If not present encryption is used.\n\n" 
+		
+		"Input File ([-fin filename]): An optional file containing the input block. If none is given stdin is used.\n\n" 
+		
+		"Key File ([-fkey filename]): An optional file containing the key. If none is given stdin is used.\n\n" 
+		
+		"Output File ([-fout filename]): An optional file for the output block. If none is given then stdout is used.\n\n" 
+		
+		"Verbose [-verbose]: This option changes the output from the altered block in binary to the hex values of the block as\n" 
+		"	the block is encrypted/decrypted. The meaning of this output can be garnered from reading Appendix C of the\n" 
+		"	FIPS 197 Advanced Encryption Standard Publication.\n\n\n"
+
+
+		"EXAMPLES INFORMATION:\n"
+		"Examples taken from the afformentioned Appendix C have been lovingly added to the examples/verbose_examples file.\n"
+		"	Additionally, the plain text block used in those examples, and the corresponding encrypted blocks, can all be\n"
+		"	found in examples/plaintext. Finally, the keys used in Appendix C to encrypt the original block can be found in\n" 
+		"	examples/keys.\n\n\n"
+		
+		"EXAMPLE USAGE:\n"
+		"If you wanted to, for example, encrypt a file called plain.txt using a 128 byte keyfile named k128.key using the AES-128\n"
+		"	encryption standard and output that encrypted block to a file named plain128.txt.enc as binary, then you could use the\n"
+		"	following command:\n\n"
+		
+		"	./AES -s aes-128 -fin plain.txt -fkey k128.key -fout plain128.txt.enc\n\n\n"
+		
+		"And to decrypt that block into stdout and redirect the binary into a file one could use:\n\n"
+		
+		"	./AES -s aes-128 -d -fin plain128.txt.enc -fkey k128.key > decrypted_block\n");
+
+		return 0;
+	}
+	else if (argc == 2) {
 		fprintf(stderr, "ERROR: Improper number of arguments.\nTry: ./AES --help\n");
 		exit(EXIT_FAILURE);
 	}
@@ -473,7 +518,7 @@ int main (unsigned int argc, char** argv) {
 		if (strcmp(argv[i], "-s") == 0) {
 			if (i+1 < argc && strlen(argv[++i]) == 7) strncpy(standard, argv[i], 7);
 			else {
-				fprintf(stderr, "ERROR: Encryption standard not identified.\nUse argument: -s aes[128|192|256]\n");
+				fprintf(stderr, "ERROR: Encryption standard not identified.\nUse argument: -s aes-[128|192|256]\n");
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -584,21 +629,6 @@ int main (unsigned int argc, char** argv) {
 			key[i] = strtoul(str, NULL, 16);
 		}
 	}
-
-
-	uint8_t test_in[16] = { 
-		0x00, 0x11, 0x22, 0x33, 
-		0x44, 0x55, 0x66, 0x77, 
-		0x88, 0x99, 0xaa, 0xbb, 
-		0xcc, 0xdd, 0xee, 0xff 
-		};
-
-	uint8_t out[16] = { 
-		0x00, 0x00, 0x00, 0x00, 
-		0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 
-		0x00, 0x00, 0x00, 0x00 
-		};
 	
 	uint8_t statein[4][4], stateout[4][4];
 
@@ -650,6 +680,7 @@ int main (unsigned int argc, char** argv) {
 	if (encrypt) encryptBlock(statein, stateout, key, Nk, verbose, fout);
 	else decryptBlock(statein, stateout, key, Nk, verbose, fout);
 
+	uint8_t out[Nb*4];
 	for (int i = 0; i < 4; ++i)
 		for (int j = 0; j < 4; ++j)
 			out[(i*4)+j] = stateout[j][i];
