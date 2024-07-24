@@ -61,42 +61,60 @@ uint8_t InvSbox[16][16] = {
 };
 
 
-uint32_t expanded[44] = { 
-	0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c,
-	0xa0fafe17, 0x88542cb1, 0x23a33939, 0x2a6c7605,
-	0xf2c295f2, 0x7a96b943, 0x5935807a, 0x7359f67f,
-	0x3d80477d, 0x4716fe3e, 0x1e237e44, 0x6d7a883b,
-	0xef44a541, 0xa8525b7f, 0xb671253b, 0xdb0bad00,
-	0xd4d1c6f8, 0x7c839d87, 0xcaf2b8bc, 0x11f915bc,
-	0x6d88a37a, 0x110b3efd, 0xdbf98641, 0xca0093fd,
-	0x4e54f70e, 0x5f5fc9f3, 0x84a64fb2, 0x4ea6dc4f,
-	0xead27321, 0xb58dbad2, 0x312bf560, 0x7f8d292f,
-	0xac7766f3, 0x19fadc21, 0x28d12941, 0x575c006e,
-	0xd014f9a8, 0xc9ee2589, 0xe13f0cc8, 0xb6630ca6 
-};
 
-
-
-void fprintround(FILE *fout, uint8_t state[4][4], unsigned int round, char *name) {
-	fprintf(fout, "round[%2d].%-10s", round, name);
-
-	for (int i=0; i<4; ++i)
-		for (int j=0; j<4; ++j)
-			fprintf(fout, "%.2x", state[j][i] & 0xff);
-	fprintf(fout, "\n");
-}
-
+/**
+* @name ffAdd
+* @brief finite field addition of 2 elements in GF(2^8).
+* @param[in] x a 1 byte integer, interpreted as finite field polynomial.
+* @param[in] y a 1 byte integer, interpreted as finite field polynomial.
+* @return the two integers added together. 
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 4.1
+*/
 uint8_t ffAdd (uint8_t x, uint8_t y) {
 	return x ^ y;
 }
 
+
+/**
+* @name xtime
+* @brief apply multiplication of the finite field polynomial b(x) by x modulo m(x)
+* @param[in] x the finite field polynomial b(x)
+* @return the polynomial, b(x) multiplied by x mod m(x)
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 4.2.1
+*/
 uint8_t xtime (uint8_t x) {
-	if (x & 128) return (x << 1) ^ 27;
+
+	/* note that 0x1b corresponds to the irreducible polynomial
+	* specified in the AES standard: m(x) = x^8 + x^4 + x^3 + x + 1
+	*
+	* multiplication of the polynomial b(x) by x is equivalent to a left
+	* shift by 1 and then subtraction by m(x) if the resulting polynomial 
+	* is larger than m(x)
+	*
+	* which is applied if and only if x^8 is present in the resulting
+	* polynomial
+	*/
+	
+	if (x & 128) return (x << 1) ^ 0x1b; 
 	else return x << 1;
 }
 
+
+/**
+* @name ffMultiply
+* @brief fast multiplication algorithm using xtime.
+* @param[in] a the finite field polynomial a(x).
+* @param[in] b the finite field polynomial b(x).
+* @return the product of a and b
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 4.2.1
+*/
 uint8_t ffMultiply (uint8_t a, uint8_t b) {
 	
+	/* multiplication is applied bit wise, meaning b is multiplied 
+	* by x, and if that bit is flipped in a then the resulting
+	* product is added to our sum 
+	*/
+
 	uint8_t sum = 0;
 	for (int i=0; i<8; ++i) {
 		if (a & (1 << i))
@@ -108,14 +126,31 @@ uint8_t ffMultiply (uint8_t a, uint8_t b) {
 	return sum;
 }
 
+
+/**
+* @name subByte
+* @brief maps an element to another in the substitution table .
+* @param[in] a 1 byte element. unaltered.
+* @return the mapped element from Sbox.
+*/
 uint8_t subByte (uint8_t a) {
 	
+	// for i,j in (0,1,...,e,f)
+	// a = 0xij -> Sbox[i][j]
+
 	int i = (a & 0xf0) >> 4;
 	int j = a & 0x0f;
 
 	return Sbox[i][j];
 }
 
+
+/**
+* @name invSubByte
+* @brief inverse operation of subByte
+* @param[in] a 1 byte element
+* @return the mapped element from InvSbox
+*/
 uint8_t invSubByte (uint8_t a) {
 	
 	int i = (a & 0xf0) >> 4;
@@ -124,6 +159,14 @@ uint8_t invSubByte (uint8_t a) {
 	return InvSbox[i][j];
 }
 
+
+/**
+* @name subBytes
+* @brief wrapper that applies the subByte operation to each element of state.
+* @param[out] state block of 16 bytes, mapped by subBytes.
+* @return no return. parameter state is altered.
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.1.1
+*/
 void subBytes (uint8_t state[4][4]) {
 	
 	for (int i=0; i<4; ++i)
@@ -131,6 +174,14 @@ void subBytes (uint8_t state[4][4]) {
 			state[i][j] = subByte(state[i][j]);
 }
 
+
+/**
+* @name invSubBytes
+* @brief cooresponding wrapper for invSubByte.
+* @param[out] state block of 16 bytes, mapped by subBytes.
+* @return no return. parameter state is altered.
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.3.2
+*/
 void invSubBytes (uint8_t state[4][4]) {
 	
 	for (int i=0; i<4; ++i)
@@ -138,6 +189,13 @@ void invSubBytes (uint8_t state[4][4]) {
 			state[i][j] = invSubByte(state[i][j]);
 }
 
+
+/**
+* @name subWord
+* @brief applies subByte to each byte of word w.
+* @param[in] w 4 byte word.
+* @return subByted word returned.
+*/
 uint32_t subWord (uint32_t w) {
 	
 	uint32_t tempw = 0;
@@ -150,12 +208,31 @@ uint32_t subWord (uint32_t w) {
 	return tempw;
 }
 
+
+/**
+* @name rotWord
+* @brief rotates word w to the left by 1 byte.
+* @param[in] w 4 byte word.
+* @return the rotated word.
+*/
 uint32_t rotWord (uint32_t w) {
+
+	// [a3,a2,a1,a0] -> [a2,a1,a0,a3]
 
 	return (w << 8) | ((w >> 24) & 0xff);
 }
 
+
+/**
+* @name shiftRows
+* @brief cyclically rotates the rows of state.
+* @param[out] state 16 byte block.
+* @return no return. parameter state is altered.
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.1.2
+*/
 void shiftRows (uint8_t state[4][4]) {
+
+	// Each row is rotated by i bytes, where i is which row it is
 	
 	for (int i=1; i<4; ++i) {
 		uint32_t temp = (state[i][0] << 24) | ((state[i][1] << 16) & 0xff0000) |
@@ -167,6 +244,14 @@ void shiftRows (uint8_t state[4][4]) {
 	}
 }
 
+
+/**
+* @name invShiftRows
+* @brief reverses the effect of shiftRows.
+* @param[out] state 16 byte block.
+* @return no return. parameter state is altered.
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.3.1
+*/
 void invShiftRows (uint8_t state[4][4]) {
 	
 	for (int i=1; i<4; ++i) {
@@ -180,6 +265,13 @@ void invShiftRows (uint8_t state[4][4]) {
 }
 
 
+/**
+* @name mixColumns
+* @brief multiplication by a(x) = 3x^3 + x^2 + x + 2 modulo x^4 + 1 applied to each colomn in state.
+* @param[out] state 16 byte block.
+* @return no return. parameter state is altered.
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.1.3
+*/
 void mixColumns (uint8_t state[4][4]) {
 	
 	for (int j=0; j<4; ++j) {
@@ -194,6 +286,14 @@ void mixColumns (uint8_t state[4][4]) {
 	}
 }
 
+
+/**
+* @name invMixColumns
+* @brief reverses the effect of mixColumns.
+* @param[out] state 16 byte block.
+* @return no return. parameter state is altered.
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.3.3
+*/
 void invMixColumns (uint8_t state[4][4]) {
 
 	for (int j=0; j<4; ++j) {
@@ -209,6 +309,15 @@ void invMixColumns (uint8_t state[4][4]) {
 }
 
 
+/**
+* @name addRoundKey
+* @brief adds round key to the state from the key schedule.
+* @param[in] w key schedule, represented by word array.
+* @param[in] round the current round of the cipher transformation.
+* @param[out] state 16 byte block.
+* @return no return. parameter state is altered.
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.1.4
+*/
 void addRoundKey(uint8_t state[4][4], uint32_t *w, unsigned int round) {
 
 	for (int i=round; i<round+4; ++i) {
@@ -220,6 +329,15 @@ void addRoundKey(uint8_t state[4][4], uint32_t *w, unsigned int round) {
 }
 
 
+/**
+* @name keyExpansion
+* @brief using the key, a key schedule is generated for use in the cipher.
+* @param[in] key array of Nk words containing key.
+* @param[in] Nk length of key in words.
+* @param[out] w key schedule of Nb(Nr+1) words generated using key
+* @return no return. parameter w is altered.
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.2 
+*/
 void keyExpansion (uint8_t *key, uint32_t *w, unsigned int Nk) {
 
 	unsigned int Nr;
@@ -249,6 +367,37 @@ void keyExpansion (uint8_t *key, uint32_t *w, unsigned int Nk) {
 }
 
 
+/**
+* @name fprintround
+* @brief prints information about the current step of the current round of the cipher.
+* @param[in] fout FILE pointer to output file.
+* @param[in] state 16 byte block.
+* @param[in] round unsigned int, current round of cipher.
+* @param[in] name string containing the abbreviated step of this round.
+* @return no return.
+*/
+void fprintround(FILE *fout, uint8_t state[4][4], unsigned int round, char *name) {
+	fprintf(fout, "round[%2d].%-10s", round, name);
+
+	for (int i=0; i<4; ++i)
+		for (int j=0; j<4; ++j)
+			fprintf(fout, "%.2x", state[j][i] & 0xff);
+	fprintf(fout, "\n");
+}
+
+
+/**
+* @name cipher
+* @brief function that alters
+* @param[in] in
+* @param[in] out
+* @param[in] w
+* @param[in] Nr
+* @param[in] verbose
+* @param[in] fout
+* @return
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.1
+*/
 void cipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, bool verbose, FILE *fout) {
 	
 	uint8_t state[4][4];
@@ -334,6 +483,18 @@ void cipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, 
 }
 
 
+/**
+* @name
+* @brief
+* @param[in] in
+* @param[in] out
+* @param[in] w
+* @param[in] Nr
+* @param[in] verbose
+* @param[in] fout
+* @return
+* @note See FIPS 197 Advanced Encryption Standard Publication Section 5.3
+*/
 void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, bool verbose, FILE *fout) {
 	
 	uint8_t state[4][4];
@@ -414,12 +575,6 @@ void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int N
 	}
 
 	if (verbose) fprintround(fout, state, Nr-round, "ioutput");
-	else {
-		for (unsigned int i = 0; i < 4; ++i)
-			for (unsigned int j = 0; j < 4; ++j) 
-				fprintf(fout, "%.2x", state[j][i]);
-		fprintf(fout, "\n");
-	}
 
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j)
@@ -459,9 +614,12 @@ void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned in
 	invCipher(in, out, ekey, Nr, verbose, fout);
 }
 
+
+
 int main (unsigned int argc, char** argv) {
 
-	// command line parsing
+	/* A bunch of command line parsing garbage */
+
 	if (argc == 1) {
 		fprintf(stderr, "ERROR: Improper number of arguments.\nTry: ./AES --help\n");
 		exit(EXIT_FAILURE);
@@ -566,11 +724,13 @@ int main (unsigned int argc, char** argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	uint8_t in[Nb*4];
 	
-	// reading input data from file into block, only the first 16 bytes are used.
-	// if input is less than 16 bytes, we extend to 16 bytes with zeroes.
-	// if no file is given we use standard input.
+	/* reading input data from file into block, only the first 16 bytes are used. */
+	/* if input is less than 16 bytes, we extend to 16 bytes with zeroes. */
+	/* if no file is given we use standard input. */
+
+	uint8_t in[Nb*4];
+
 	FILE *fin;
 	if (finName != NULL) {
 		fin = fopen(finName, "r");
@@ -599,7 +759,8 @@ int main (unsigned int argc, char** argv) {
 	}
 
 	
-	// reading key data from file. length of key is Nk, found in AES specifications.
+	/* reading key data from file. length of key is Nk, found in AES specifications. */
+
 	unsigned int Nk = getNk(standard);
 	uint8_t key[Nk*4];
 
@@ -630,6 +791,8 @@ int main (unsigned int argc, char** argv) {
 		}
 	}
 	
+	/* input is read into 4x4 block for conformity to cipher */
+
 	uint8_t statein[4][4], stateout[4][4];
 
 	for (int i=0; i<4; ++i)
@@ -638,6 +801,8 @@ int main (unsigned int argc, char** argv) {
 			stateout[i][j] = 0x00;
 		}
 
+
+	/* defining output file, using stdout if no file given */
 
 	FILE *fout;
 	if (foutName != NULL) {
@@ -677,13 +842,22 @@ int main (unsigned int argc, char** argv) {
 		fprintf(fout, "\n\n");
 	}
 
+	
+	/* encryption of decryption based on command line */
+
 	if (encrypt) encryptBlock(statein, stateout, key, Nk, verbose, fout);
 	else decryptBlock(statein, stateout, key, Nk, verbose, fout);
 
+	
+	/* makes fwrite work in one line */
+	
 	uint8_t out[Nb*4];
 	for (int i = 0; i < 4; ++i)
 		for (int j = 0; j < 4; ++j)
 			out[(i*4)+j] = stateout[j][i];
+
+	
+	/* write binary to file and close file if needed */
 
 	if (!verbose) fwrite(out, sizeof(uint8_t), Nb*4, fout);
 
