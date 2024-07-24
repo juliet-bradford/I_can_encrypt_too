@@ -4,8 +4,12 @@
 #include <stdio.h>
 #include <string.h>
 
+
+/* number of columns comprising the state */
 unsigned int Nb = 4;
 
+
+/* the round constant word array */
 uint32_t Rcon[] = { 
 	0x00000000, 0x01000000, 0x02000000, 0x04000000, 
 	0x08000000, 0x10000000, 0x20000000, 0x40000000, 
@@ -22,6 +26,11 @@ uint32_t Rcon[] = {
 	0x74000000, 0xE8000000, 0xCB000000, 0x8D000000
 };
 
+
+/* mapping array used by subBytes
+* The specifics of the construction can be found in 
+* FIPS 197 Advanced Encryption Standard Publication Section 5.1.1 
+*/
 uint8_t Sbox[16][16] = {
 	{ 0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76 },
 	{ 0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0 },
@@ -41,6 +50,11 @@ uint8_t Sbox[16][16] = {
 	{ 0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16 }
 };
 
+
+/* mapping array used by invSubBytes
+* The specifics of the construction can be found in 
+* FIPS 197 Advanced Encryption Standard Publication Section 5.3.2 
+*/
 uint8_t InvSbox[16][16] = {
 	{ 0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb } ,
 	{ 0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb } ,
@@ -388,23 +402,17 @@ void fprintround(FILE *fout, uint8_t state[4][4], unsigned int round, char *name
 
 /**
 * @name cipher
-* @brief function that alters
-* @param[in] in
-* @param[in] out
-* @param[in] w
-* @param[in] Nr
-* @param[in] verbose
-* @param[in] fout
-* @return
+* @brief function that alters the block according to the AES cipher.
+* @param[in] w key schedule sized to Nb(Nr+1).
+* @param[in] Nr number of rounds in cipher.
+* @param[in] verbose boolean, if true step by step output is printed.
+* @param[in] fout FILE pointer that output is directed to if verbose.
+* @param[out] state the 16 byte block.
+* @return no return. parameter state is altered.
 * @note See FIPS 197 Advanced Encryption Standard Publication Section 5.1
 */
-void cipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, bool verbose, FILE *fout) {
+void cipher (uint8_t state[4][4], uint32_t *w, unsigned int Nr, bool verbose, FILE *fout) {
 	
-	uint8_t state[4][4];
-	for (int i=0; i<4; ++i)
-		for (int j=0; j<4; ++j)
-			state[i][j] = in[i][j];
-
 	unsigned int round = 0;
 	
 	if (verbose) {
@@ -477,30 +485,21 @@ void cipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, 
 	if (verbose) 
 		fprintround(fout, state, round, "output");
 
-	for (int i=0; i<4; ++i)
-		for (int j=0; j<4; ++j)
-			out[i][j] = state[i][j];
 }
 
 
 /**
-* @name
-* @brief
-* @param[in] in
-* @param[in] out
-* @param[in] w
-* @param[in] Nr
-* @param[in] verbose
-* @param[in] fout
-* @return
+* @name invCipher
+* @brief function that alters the block according to the AES inverse cipher.
+* @param[in] w key schedule sized to Nb(Nr+1).
+* @param[in] Nr number of rounds in cipher.
+* @param[in] verbose boolean, if true step by step output is printed.
+* @param[in] fout FILE pointer that output is directed to if verbose.
+* @param[out] state the 16 byte block.
+* @return no return. parameter state is altered.
 * @note See FIPS 197 Advanced Encryption Standard Publication Section 5.3
 */
-void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int Nr, bool verbose, FILE *fout) {
-	
-	uint8_t state[4][4];
-	for (int i=0; i<4; ++i)
-		for (int j=0; j<4; ++j)
-			state[i][j] = in[i][j];
+void invCipher (uint8_t state[4][4], uint32_t *w, unsigned int Nr, bool verbose, FILE *fout) {
 
 	int round = Nr;
 	
@@ -574,13 +573,17 @@ void invCipher (uint8_t in[4][4], uint8_t out[4][4], uint32_t *w, unsigned int N
 		fprintf(fout, "\n");
 	}
 
-	if (verbose) fprintround(fout, state, Nr-round, "ioutput");
+	if (verbose) 
+		fprintround(fout, state, Nr-round, "ioutput");
 
-	for (int i=0; i<4; ++i)
-		for (int j=0; j<4; ++j)
-			out[i][j] = state[i][j];
 }
 
+/**
+* @name getNk
+* @brief function that returns the key length based on the encryption standard
+* @param[in] standard encryption standard as string.
+* @return unsigned int. length of key in words.
+*/
 unsigned int getNk(char standard[8]) {
 
 	if (strcmp(standard, "aes-128") == 0) 
@@ -595,23 +598,42 @@ unsigned int getNk(char standard[8]) {
 	}
 }
 
-void encryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, bool verbose, FILE *fout) {
+/**
+* @name encryptBlock
+* @brief wrapper for encryption cipher and key expansion.
+* @param[in] key uint32_t[Nk]. cipher key.
+* @param[in] Nk length of key according to encryption specification.
+* @param[in] verbose boolean for detailed output.
+* @param[in] fout file that detailed output is directed to.
+* @param[out] state 16 byte block.
+* @return no return. parameter state is altered.
+*/
+void encryptBlock(uint8_t state[4][4], uint8_t *key, unsigned int Nk, bool verbose, FILE *fout) {
 
 	unsigned int Nr = Nk + 6;
 
 	uint32_t ekey[Nb*(Nr+1)];
 	keyExpansion(key, ekey, Nk);
-	cipher(in, out, ekey, Nr, verbose, fout);
-
+	cipher(state, ekey, Nr, verbose, fout);
 }
 
-void decryptBlock(uint8_t in[4][4], uint8_t out[4][4], uint8_t *key, unsigned int Nk, bool verbose, FILE *fout) {
+/**
+* @name decryptBlock
+* @brief wrapper for decryption cipher and key expansion.
+* @param[in] key uint32_t[Nk]. cipher key.
+* @param[in] Nk length of key according to encryption specification.
+* @param[in] verbose boolean for detailed output.
+* @param[in] fout file that detailed output is directed to.
+* @param[out] state 16 byte block.
+* @return no return. parameter state is altered.
+*/
+void decryptBlock(uint8_t state[4][4], uint8_t *key, unsigned int Nk, bool verbose, FILE *fout) {
 
 	unsigned int Nr = Nk + 6;
 
 	uint32_t ekey[Nb*(Nr+1)];
 	keyExpansion(key, ekey, Nk);
-	invCipher(in, out, ekey, Nr, verbose, fout);
+	invCipher(state, ekey, Nr, verbose, fout);
 }
 
 
@@ -793,12 +815,12 @@ int main (unsigned int argc, char** argv) {
 	
 	/* input is read into 4x4 block for conformity to cipher */
 
-	uint8_t statein[4][4], stateout[4][4];
+	uint8_t statein[4][4]; //, stateout[4][4];
 
 	for (int i=0; i<4; ++i)
 		for (int j=0; j<4; ++j) {
 			statein[j][i] = in[(4*i)+j];
-			stateout[i][j] = 0x00;
+			//stateout[i][j] = 0x00;
 		}
 
 
@@ -845,8 +867,8 @@ int main (unsigned int argc, char** argv) {
 	
 	/* encryption of decryption based on command line */
 
-	if (encrypt) encryptBlock(statein, stateout, key, Nk, verbose, fout);
-	else decryptBlock(statein, stateout, key, Nk, verbose, fout);
+	if (encrypt) encryptBlock(statein, key, Nk, verbose, fout);
+	else decryptBlock(statein, key, Nk, verbose, fout);
 
 	
 	/* makes fwrite work in one line */
@@ -854,9 +876,9 @@ int main (unsigned int argc, char** argv) {
 	uint8_t out[Nb*4];
 	for (int i = 0; i < 4; ++i)
 		for (int j = 0; j < 4; ++j)
-			out[(i*4)+j] = stateout[j][i];
+			out[(i*4)+j] = statein[j][i];
 
-	
+
 	/* write binary to file and close file if needed */
 
 	if (!verbose) fwrite(out, sizeof(uint8_t), Nb*4, fout);
